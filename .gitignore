@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build artifacts & executables (files > 100MB)
+dist/
+pc/dist/
+*.exe
+*.dll
+
+# Android build outputs & local config
+.gradle/
+*/.gradle/
+build/
+*/build/
+apk/android/app/build/
+apk/android/build/
+apk/android/local.properties
+apk/android/.idea/
+apk/android/.gradle/
+*.apk
+*.aab
+*.zip
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>WhatsApp Web</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00a884">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Hidden file input for updating profile photo -->
+  <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;" onchange="handlePhotoSelected(event)">
+
+  <!-- Backwards compatibility hidden elements -->
+  <div id="profileCard" style="display:none;" aria-hidden="true">
+    <h3 id="profileName"></h3>
+    <dl>
+      <dt>User code</dt>
+      <dd id="profileUserCode"></dd>
+      <dt hidden>Email</dt>
+      <dd id="profileEmail" hidden></dd>
+      <dt>Phone</dt>
+      <dd id="profilePhone"></dd>
+    </dl>
+  </div>
+  <span id="recipient" style="display:none;" aria-hidden="true"></span>
+  <span id="me" style="display:none;" aria-hidden="true"></span>
+  <span id="myCode" style="display:none;" aria-hidden="true"></span>
+
+  <!-- =======================================================
+       WHATSAPP AUTHENTICATION SCREEN
+       ======================================================= -->
+  <section id="auth">
+    <div class="wa-auth-box">
+      <div class="wa-auth-brand">
+        <div class="wa-brand-icon">
+          <!-- WhatsApp Phone Logo -->
+          <svg viewBox="0 0 24 24">
+            <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.78 14.07c-.24.68-1.2 1.25-1.65 1.29-.44.04-.99.16-3.23-.74-2.68-1.08-4.39-3.79-4.52-3.97-.13-.18-1.07-1.42-1.07-2.71 0-1.29.68-1.92.92-2.18.24-.26.53-.33.71-.33.18 0 .36 0 .51.01.17.01.39-.06.61.47.23.55.78 1.91.85 2.05.07.14.12.31.02.49-.09.18-.14.29-.27.45-.14.16-.29.35-.42.47-.14.14-.29.29-.12.58.17.29.74 1.22 1.59 1.98 1.1 1 2.02 1.31 2.31 1.45.29.14.46.12.63-.07.17-.19.74-.86.94-1.16.2-.29.4-.24.67-.14.28.1 1.77.83 2.07.98.3.15.5.22.57.34.07.13.07.74-.17 1.42z"/>
+          </svg>
+        </div>
+        <h1>WhatsApp Web</h1>
+        <p>Private end-to-end WebSocket messaging</p>
+      </div>
+
+      <div class="wa-auth-tabs">
+        <button id="tabLogin" class="wa-auth-tab active" onclick="switchAuthTab('login')">Log In</button>
+        <button id="tabRegister" class="wa-auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <div class="wa-field-group">
+        <label for="username">Username</label>
+        <input id="username" class="wa-input-control" placeholder="Enter username" autocomplete="username">
+      </div>
+
+      <div class="wa-field-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" class="wa-input-control" placeholder="Enter password (min 8 characters)" autocomplete="current-password">
+      </div>
+
+      <div class="wa-field-group" id="fullNameGroup" style="display: none;">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" class="wa-input-control" placeholder="e.g. Alice Johnson" autocomplete="name">
+      </div>
+
+      <div class="wa-field-group" id="phoneGroup" style="display: none;">
+        <label for="phone">Phone Number</label>
+        <input id="phone" class="wa-input-control" placeholder="e.g. +1-555-0199" autocomplete="tel">
+      </div>
+
+      <button id="authSubmitBtn" class="wa-btn-submit" onclick="login()">Log In</button>
+
+      <div id="authStatus"></div>
+
+      <div class="wa-quick-accounts">
+        <div class="wa-quick-title">Quick Test Accounts:</div>
+        <div class="wa-quick-row">
+          <button type="button" class="wa-btn-quick" onclick="fillDemo('alice')">
+            <span style="color: #00a884; font-size: 14px;">●</span> Alice
+          </button>
+          <button type="button" class="wa-btn-quick" onclick="fillDemo('bob')">
+            <span style="color: #53bdeb; font-size: 14px;">●</span> Bob
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       WHATSAPP MAIN APPLICATION
+       ======================================================= -->
+  <section id="app">
+    <div class="wa-app-window">
+
+      <!-- LEFT SIDEBAR -->
+      <aside class="wa-sidebar">
+
+        <!-- 1. My Profile Slide-in Drawer (WhatsApp Style) -->
+        <div class="wa-profile-drawer" id="myProfileDrawer">
+          <div class="wa-drawer-header">
+            <button class="wa-btn-drawer-back" onclick="closeMyProfileDrawer()" title="Back">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+              </svg>
+            </button>
+            <div class="wa-drawer-title">Profile</div>
+          </div>
+
+          <div class="wa-drawer-body">
+            <!-- Center Circular Avatar with Camera Hover Overlay -->
+            <div class="wa-profile-photo-wrap" onclick="triggerPhotoUpload()" title="Click to change profile photo">
+              <div id="myDrawerAvatar" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 54px; font-weight: 600; color: white;">
+                ME
+              </div>
+              <div class="wa-photo-overlay">
+                <!-- Camera Icon -->
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0 3.2 3.2 0 1 0-6.4 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+                </svg>
+                <span>CHANGE PROFILE PHOTO</span>
+              </div>
+            </div>
+
+            <!-- Profile Name Card -->
+            <div class="wa-info-card">
+              <div class="wa-info-label">Your name</div>
+              <div class="wa-info-row">
+                <div class="wa-info-value" id="drawerMyFullName">Name</div>
+                <button class="wa-btn-icon" onclick="editMyFullName()" title="Edit Name">
+                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+              </div>
+              <div class="wa-info-hint">This is not your username or pin. This name will be visible to your WhatsApp contacts.</div>
+            </div>
+
+            <!-- About Card -->
+            <div class="wa-info-card">
+              <div class="wa-info-label">About</div>
+              <div class="wa-info-row">
+                <div class="wa-info-value" id="drawerMyAbout">Hey there! I am using WhatsApp.</div>
+                <button class="wa-btn-icon" onclick="editMyAbout()" title="Edit About">
+                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- User Code Card -->
+            <div class="wa-info-card">
+              <div class="wa-info-label">Your User Code</div>
+              <div class="wa-info-row">
+                <div class="wa-info-value" style="font-family: monospace; color: var(--wa-green-primary); font-weight: 700;" id="drawerMyCode">--------</div>
+                <button class="wa-btn-icon" onclick="copyMyCode()" title="Copy Code">
+                  <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+              </div>
+              <div class="wa-info-hint">Give this code to others so they can start a private chat with you.</div>
+            </div>
+
+            <!-- Photo Action Buttons -->
+            <div style="width: 100%; display: flex; gap: 10px; margin-top: 10px;">
+              <button class="wa-btn-submit" style="flex: 1; padding: 10px;" onclick="triggerPhotoUpload()">Upload Photo</button>
+              <button class="wa-btn-submit" style="flex: 1; padding: 10px; background: var(--wa-bg-input); color: var(--wa-text-primary);" onclick="removeProfilePhoto()">Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Sidebar Header -->
+        <div class="wa-sidebar-header">
+          <div class="wa-my-profile-chip" onclick="openMyProfileDrawer()" title="View your profile &amp; change photo">
+            <div class="wa-avatar" id="myHeaderAvatar">ME</div>
+            <div class="wa-my-texts">
+              <div class="wa-my-name" id="myDisplayUsername">Username</div>
+              <div class="wa-code-badge" title="Click to copy your code">
+                Code: <span id="myDisplayCode">--------</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wa-header-icons">
+            <button class="wa-btn-icon" onclick="openMyProfileDrawer()" title="Profile &amp; Photo">
+              <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </button>
+            <button class="wa-btn-icon" onclick="copyMyCode()" title="Copy User Code">
+              <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            </button>
+            <button class="wa-btn-icon" onclick="logout()" title="Log out">
+              <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Sidebar Search / Connect Box -->
+        <div class="wa-search-section">
+          <div class="wa-search-pill">
+            <svg viewBox="0 0 24 24">
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input id="recipientCode" placeholder="Enter recipient code (e.g. E5F6G7H8)" maxlength="8">
+            <button class="wa-btn-connect-pill" onclick="startChat()">Chat</button>
+          </div>
+        </div>
+
+        <!-- 4. Sidebar Chats List -->
+        <div class="wa-chats-list" id="sidebarRecentsList">
+          <!-- Populated by app.js -->
+        </div>
+      </aside>
+
+      <!-- RIGHT MAIN CHAT PANEL -->
+      <main class="wa-main-panel" id="mainChatPanel">
+
+        <!-- Blank Default View -->
+        <div class="wa-blank-view" id="blankChatView">
+          <!-- WhatsApp Lock / Encrypted Icon -->
+          <div class="wa-brand-icon" style="width: 80px; height: 80px; background: #202c33; margin-bottom: 20px;">
+            <svg viewBox="0 0 24 24" style="width: 44px; height: 44px; fill: #00a884;">
+              <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
+            </svg>
+          </div>
+          <h2>WhatsApp Web</h2>
+          <p>Send and receive messages with your contacts. Enter an 8-character recipient code on the left to start a private conversation.</p>
+          <div class="wa-blank-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <span>End-to-end encrypted &bull; WebSocket GOAT Lab</span>
+          </div>
+        </div>
+
+        <!-- Active Chat Window -->
+        <div id="chat">
+          <!-- Chat Header -->
+          <div class="wa-chat-header" id="recipientBar">
+            <div class="wa-recipient-box" onclick="toggleContactDrawer(true)" title="View contact info">
+              <button class="wa-btn-icon" style="display: none;" id="btnMobileBack" onclick="event.stopPropagation(); closeMobileChat()">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+              </button>
+              <div class="wa-avatar" id="chatHeaderAvatar">U</div>
+              <div class="wa-recipient-texts">
+                <div class="wa-recipient-name" id="chatHeaderUsername">Recipient</div>
+                <div class="wa-recipient-status" id="recipientSubStatus">online</div>
+              </div>
+            </div>
+
+            <div class="wa-header-icons">
+              <button class="wa-btn-icon" onclick="toggleContactDrawer()" title="Contact Info">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              </button>
+              <button id="blockBtn" class="wa-btn-icon" onclick="blockCurrentUser()" title="Block Contact">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Block Notification Banner -->
+          <div id="blockStatus"></div>
+
+          <!-- Chat Status indicator -->
+          <div id="chatStatus"></div>
+
+          <!-- Messages Canvas with WhatsApp Doodle Pattern -->
+          <div class="wa-chat-canvas">
+            <div class="wa-doodle-bg"></div>
+            <div id="messages">
+              <!-- Dynamically populated messages -->
+            </div>
+          </div>
+
+          <!-- Chat Footer Input Area -->
+          <div class="wa-chat-footer">
+            <button class="wa-btn-icon" type="button" onclick="insertEmoji('😊')" title="Emoji">
+              <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+            </button>
+            <button class="wa-btn-icon" type="button" onclick="insertEmoji('👍')" title="Thumbs up">
+              <svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+            </button>
+
+            <div class="wa-input-pill">
+              <input id="messageInput" placeholder="Type a message" autocomplete="off">
+            </div>
+
+            <button id="sendBtn" onclick="sendMessage()" title="Send">
+              <!-- Send Paper Airplane Icon -->
+              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- CONTACT INFO DRAWER (Right Slide-in) -->
+        <div class="wa-contact-drawer" id="contactDrawer">
+          <div class="wa-contact-header">
+            <button class="wa-btn-icon" onclick="toggleContactDrawer(false)" title="Close">
+              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+            <h3>Contact info</h3>
+          </div>
+
+          <div class="wa-contact-body">
+            <div class="wa-contact-avatar-large" id="contactAvatarLarge">
+              <div id="contactAvatarTextLarge" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 50px; font-weight: 600; color: white;">U</div>
+            </div>
+
+            <h3 id="drawerContactName" style="margin-bottom: 4px; font-size: 19px;">Contact Name</h3>
+            <div style="color: var(--wa-green-primary); font-size: 13px; font-weight: 500; margin-bottom: 20px;" id="drawerContactUsername">@username</div>
+
+            <div class="wa-info-card">
+              <div class="wa-info-label">About</div>
+              <div class="wa-info-value" id="drawerContactAbout">Hey there! I am using WhatsApp.</div>
+            </div>
+
+            <div class="wa-info-card">
+              <div class="wa-info-label">User Code</div>
+              <div class="wa-info-row">
+                <div class="wa-info-value" style="font-family: monospace; color: var(--wa-green-primary); font-weight: 700;" id="drawerContactCode">--------</div>
+                <button class="wa-btn-icon" onclick="copyRecipientCode()" title="Copy Code">
+                  <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="wa-info-card">
+              <div class="wa-info-label">Phone number</div>
+              <div class="wa-info-value" id="drawerContactPhone">Not provided</div>
+            </div>
+
+            <div class="wa-info-card">
+              <div class="wa-info-label">Email address</div>
+              <div class="wa-info-value" id="drawerContactEmail">Private (Lab Target)</div>
+            </div>
+
+            <button class="wa-btn-block-contact" onclick="blockCurrentUser()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>
+              <span>Block Contact</span>
+            </button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </section>
+
+  <!-- Interactive Toasts -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
